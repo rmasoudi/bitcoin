@@ -3,7 +3,6 @@ package ir.googooli.magooli;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class ScrollManager {
@@ -11,10 +10,11 @@ public class ScrollManager {
     private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private Long interval;
     private BlockingQueue<Interval> queue;
+    private volatile boolean finished = false;
 
-    public ScrollManager(ExtractorConfig config) {
-        queue = new ArrayBlockingQueue<>(config.getScrollers() * 3);
+    public ScrollManager(ExtractorConfig config, BlockingQueue<Interval> queue) {
         cursor = LocalDateTime.parse(config.getFrom(), timeFormatter).toInstant(ZoneOffset.UTC).toEpochMilli();
+        this.queue = queue;
         loadInterval(config);
     }
 
@@ -33,7 +33,7 @@ public class ScrollManager {
     }
 
     public void start() {
-        while (true) {
+        while (!finished) {
             try {
                 waitForData();
                 Interval item = new Interval(cursor, cursor + interval);
@@ -52,5 +52,9 @@ public class ScrollManager {
             } catch (InterruptedException ignored) {
             }
         }
+    }
+
+    public void finish() {
+        finished = true;
     }
 }
