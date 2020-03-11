@@ -1,0 +1,33 @@
+{
+  "request": {
+    "query": {
+      "bool": {
+        "minimum_should_match": 1,
+        "should": [
+          {
+            "exists": {
+              "field": "txid"
+            }
+          },
+          {
+            "exists": {
+              "field": "output_address"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "threads": 3,
+  "scrollers": 3,
+  "elastic": [
+    "10.35.0.16"
+  ],
+  "scroll": "10m",
+  "metaIndex": "metadata-",
+  "size": 5000,
+  "from": "2020-01-01 00:00:00",
+  "interval": "30m",
+  "txIndex": "bitcoin-tx",
+  "addressIndex": "bitcoin-address"
+}
