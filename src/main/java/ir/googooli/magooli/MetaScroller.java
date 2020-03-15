@@ -47,7 +47,7 @@ public class MetaScroller extends Thread {
                 ScrollAndSize scrollAndSize = processResults(response);
 
                 while (scrollAndSize != null && scrollAndSize.getScroll() != null && scrollAndSize.getSize() > 0) {
-                    Request scrollRequest = new Request("GET", "/" + indexName + "/_search");
+                    Request scrollRequest = new Request("GET", "/_search/scroll");
                     HashMap<String, Object> scrollBody = new HashMap<>();
                     scrollBody.put("scroll", config.getScroll());
                     scrollBody.put("scroll_id", scrollAndSize.getScroll());

@@ -1,0 +1,82 @@
+{
+  "index_patterns": ["map*"],
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings" : {
+    "properties" : {
+      "admin_level" : {
+        "type" : "integer"
+      },
+      "alley" : {
+        "type" : "text"
+      },
+      "area" : {
+        "type" : "text"
+      },
+      "boundary" : {
+        "type" : "keyword"
+      },
+      "building" : {
+        "type" : "text"
+      },
+      "center" : {
+        "type" : "geo_point"
+      },
+      "city" : {
+        "type" : "text"
+      },
+      "desc" : {
+        "type" : "text"
+      },
+      "district" : {
+        "type" : "text"
+      },
+      "full_text" : {
+        "type" : "text",
+        "index_options" : "docs",
+        "analyzer" : "map_analyzer"
+      },
+      "highway" : {
+        "type" : "text"
+      },
+      "ids" : {
+        "type" : "keyword"
+      },
+      "intersection" : {
+        "type" : "text"
+      },
+      "level" : {
+        "type" : "long"
+      },
+      "name" : {
+        "type" : "text"
+      },
+      "name_list" : {
+        "type" : "keyword"
+      },
+      "nodes" : {
+        "type" : "geo_point"
+      },
+      "other" : {
+        "type" : "text"
+      },
+      "postcode" : {
+        "type" : "text"
+      },
+      "prov" : {
+        "type" : "text"
+      },
+      "square" : {
+        "type" : "text"
+      },
+      "street" : {
+        "type" : "text"
+      },
+      "type" : {
+        "type" : "keyword"
+      }
+    }
+  }
+}

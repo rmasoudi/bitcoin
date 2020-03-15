@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>map</title>
+    <script src="jquery-3.4.1.min.js"></script>
+    <style>
+        .city {
+            background-color: blue;
+            padding: 5px;
+            color: white;
+        }
+
+        .area {
+            background-color: green;
+            padding: 5px;
+            color: white;
+        }
+
+        .addr {
+            background-color: pink;
+            padding: 5px;
+            color: white;
+        }
+
+        .row {
+            margin-top: 20px;
+        }
+
+    </style>
+</head>
+<body dir="rtl">
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#txtQuery").keyup(function () {
+            doSearch($("#txtQuery").val());
+            tap30Search($("#txtQuery").val());
+        });
+    });
+
+    commonTerms = [
+        "کوچه",
+        "خیابان",
+        "بنبست",
+        "بزرگراه",
+        "آزادراه",
+        "میدان",
+        "شرقی",
+        "غربی",
+        "شمالی",
+        "جنوبی"
+    ];
+    fuzzy = true;
+
+    function doSearch(address) {
+
+        $("#results").html("");
+        if (address === "") {
+            return;
+        }
+        address = address.replace("بن بست", "بنبست");
+        address = address.replace("اتوبان", "بزرگراه");
+        address = address.replace("بزرگ راه", "بزرگراه");
+        address = address.replace("آزاد راه", "آزادراه");
+        address = address.replace(" خ ", " خیابان ");
+        address = address.replace(" ک ", " کوچه ");
+        address = address.replace("نرسیده به", " ");
+        address = address.replace("ثبل از", " ");
+        address = address.replace("حد فاصل", " ");
+        address = address.replace("نبش ", " ");
+        address = address.replace("  ", " ");
+        let split = address.split(" ");
+        let orClause = "";
+        let andClause = "";
+        for (let i = 0; i < split.length; i++) {
+            let item = split[i];
+            let weight = 2;
+            if (item === "") {
+                continue;
+            }
+            if (commonTerms.includes(item)) {
+                weight = 1;
+            } else if (i === 0) {
+                weight = 3;
+            }
+            orClause += "(" + item + (fuzzy ? "~1" : "") + ")^" + weight;
+            andClause += "(" + item + (fuzzy ? "~1" : "") + ")^" + weight;
+            if (i < split.length - 1) {
+                orClause += " OR ";
+                andClause += " AND ";
+            }
+        }
+        if (orClause.endsWith("OR ")) {
+            orClause = orClause.substring(0, orClause.lastIndexOf("OR ")).trim();
+        }
+        if (andClause.endsWith("AND ")) {
+            andClause = andClause.substring(0, andClause.lastIndexOf("AND ")).trim();
+        }
+        if (orClause === "") {
+            return;
+        }
+        let query = "(" + andClause + ")^2 OR (" + orClause + ")^1";
+
+        let request = {
+            query: {
+                query_string: {
+                    query: query,
+                    default_field: "full_text"
+                }
+            }
+        };
+        searchOnIndex(request, "map*bool","boolResults");
+        searchOnIndex(request, "map*3","results");
+    }
+
+    function searchOnIndex(request, index, container) {
+        $.ajax({
+            type: "POST",
+            url: "http://192.168.16.150:9200/" + index + "/_search",
+            data: JSON.stringify(request),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            success: function (data) {
+                handleResults(data, container);
+            },
+            error: function (err) {
+                alert(err.responseText);
+            }
+        });
+    }
+
+    function handleResults(data, containerId) {
+        $("#" + containerId).html("");
+        data = data["hits"];
+        data = data["hits"];
+        for (let i = 0; i < data.length; i++) {
+            let source = data[i]["_source"];
+            let city = source["city"];
+            let area = source["area"];
+            let name = source["name"];
+            let row = $("<div class='row'></div>");
+            if (city !== null && city !== undefined) {
+                row.append("<span class='city'>" + city + " </span>");
+            }
+            if (area !== null && area !== undefined) {
+                row.append("<span class='area'>" + area + " </span>");
+            }
+            if (name !== null && name !== undefined) {
+                row.append("<span class='addr'>" + name + " </span>");
+            }
+            $("#" + containerId).append(row);
+        }
+    }
+
+    function tap30Search(address) {
+        request = {query: address, location: null, camera: {latitude: 35.75756, longitude: 51.409967}};
+        $.ajax({
+            type: "POST",
+            url: 'https://tap33.me/api/v2.2/search',
+            data: JSON.stringify(request),
+            headers: {
+                'Content-Type': 'application/json',
+                'x-authorization': 'eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxNjcwNzEsInJvbGUiOiJQQVNTRU5HRVIiLCJjaXR5IjoiIn0sImlhdCI6MTU4MzkyNzQ5MiwiYXVkIjoiZG9yb3Noa2U6YXBwIiwiaXNzIjoiZG9yb3Noa2U6c2VydmVyIiwic3ViIjoiZG9yb3Noa2U6dG9rZW4ifQ.ulNh-rxoP4uWm0UVhsB0NdOCVclmDBfxs3hjrHNGbtuYulORWK_J_6teb1m6F7CCTgog7HHuk9jr6cYdFqPW-w'
+            },
+            success: function (data) {
+                $("#tap30Results").html("");
+                data = data["data"];
+                data = data["results"];
+                for (let i = 0; i < data.length; i++) {
+                    let city = data[i]["title"];
+                    let area = data[i]["subtitle"];
+                    let row = $("<div class='row'></div>");
+                    if (city !== null && city !== undefined) {
+                        row.append("<span class='city'>" + city + " </span>");
+                    }
+                    if (area !== null && area !== undefined) {
+                        row.append("<span class='area'>" + area + " </span>");
+                    }
+                    $("#tap30Results").append(row);
+                }
+            },
+            error: function (err) {
+                alert(err.responseText);
+            }
+        });
+    }
+</script>
+<input id="txtQuery"/>
+<table style="width: 100%;border: solid 1px black;">
+    <tr>
+        <td style="text-align: center;background-color: black;color: white; width: 30%;border-left: solid 1px black;border-bottom: solid 1px black;">
+            Bool
+        </td>
+        <td style="text-align: center;background-color: black;color: white; width: 30%;border-left: solid 1px black;border-bottom: solid 1px black;">
+            Simple
+        </td>
+        <td style="width: 30%; border-bottom: solid 1px black;text-align: center;background-color: black;color: white;">
+            Tap30
+        </td>
+    </tr>
+    <tr>
+        <td style="width:30%;border-left: solid 1px black;">
+            <div id="boolResults">
+            </div>
+        </td>
+        <td style="width: 30%;border-left: solid 1px black;">
+            <div id="results">
+            </div>
+        </td>
+        <td style="width: 30%;border-left: solid 1px black;">
+            <div id="tap30Results">
+            </div>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
