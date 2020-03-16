@@ -10,26 +10,71 @@ public class CorrectorUtil {
 
     public static void main(String[] args) {
         ArrayList<String> list = new ArrayList<>();
-        list.add("مشهد رضا ۳۰ - ابوذر غفاری ۳۰");
+        list.add("تهران خیابان سردارجنگل کوچه عادل شرقی");
         Object o = correctFullText(list);
         System.out.println(o);
 
     }
 
     public static Set<String> correctTerms(String address) {
+        Set<String> results=new HashSet<>();
         String[] split = address.split(" ");
-        Set<String> set = new HashSet<>(Arrays.asList(split));
-        for (String word : split) {
-            List<Integer> indices = getSplitIndices(word);
-            for (Integer index : indices) {
-                String s = splitAt(word, index);
-                set.add(s.trim());
+        Set<String>[] varArray = new Set[split.length];
+        List<Integer> preIndices = new ArrayList<>();
+        List<Integer> postIndices = new ArrayList<>();
+        List<Integer> otherIndices = new ArrayList<>();
+        for (int i = 0; i < split.length; i++) {  //سردارجنگل سردار جنگل
+            String word = split[i];
+            Set<String> variations = new HashSet<>();
+            if (COMMON_POSTFIX.contains(word)) {
+                variations.add(word);
+                postIndices.add(i);
+            } else if (COMMON_PREFIX.contains(word)) {
+                variations.add(word);
+                preIndices.add(i);
+            } else {
+                variations = getWordVariations(word);
+                otherIndices.add(i);
+            }
+            varArray[i] = variations;
+        }
+
+        for (Integer index : preIndices) {//خیابانسردار
+            if (index < split.length - 1) {
+                Set<String> candidates = varArray[index + 1];
+                for (String candidate : candidates) {
+                    results.add(split[index] + candidate);
+                }
             }
         }
-        for (int i = 0; i < split.length - 1; i++) {
-            set.add(split[i] + split[i + 1]);
+        for (Integer index : postIndices) {//عادلشرقی
+            if (index > 0) {
+                Set<String> candidates = varArray[index - 1];
+                for (String candidate : candidates) {
+                    results.add(candidate + split[index]);
+                }
+
+            }
         }
-        return set;
+        for (Integer index : otherIndices) {
+            Set<String> candidates = varArray[index];
+            results.addAll(candidates);
+        }
+        for (int i = 0; i < split.length - 1; i++) {  //سردارجنگل from سردار جنگل
+            results.add(split[i] + split[i + 1]);
+        }
+        return results;
+    }
+
+    private static Set<String> getWordVariations(String word) {
+        List<Integer> indices = getSplitIndices(word);
+        Set<String> wordSamples = new HashSet<>();
+        wordSamples.add(word);
+        for (Integer index : indices) {
+            String s = splitAt(word, index);
+            wordSamples.add(s.trim());
+        }
+        return wordSamples;
     }
 
     private static List<Integer> getSplitIndices(String word) {
@@ -50,19 +95,45 @@ public class CorrectorUtil {
         return part1 + " " + part2;
     }
 
-    public static Object correctFullText(Object o) {
+    public static String getText(Object o) {
         if (o instanceof String) {
-            String text = o.toString();
-            return createAddress(CorrectorUtil.correctTerms(text));
+            return o.toString();
         } else {
             ArrayList<String> list = (ArrayList<String>) o;
-            Set<String> set = new HashSet<>();
+            String maxText = null;
+            int maxLength = 0;
             for (String s : list) {
-                Set<String> terms = CorrectorUtil.correctTerms(s);
-                set.addAll(terms);
+                if (s.length() > maxLength) {
+                    maxLength = s.length();
+                    maxText = s;
+                }
             }
-            return createAddress(set);
+            return maxText;
         }
+    }
+
+    private static final List<String> COMMON_PREFIX = Arrays.asList("کوچه", "خیابان", "بنبست", "بزرگراه", "آزادراه", "میدان");
+    private static final List<String> COMMON_POSTFIX = Arrays.asList("شرقی", "غربی", "شمالی", "جنوبی");
+
+    public static Object correctFullText(Object o) {
+        String text = getText(o);
+        Set<String> terms = correctTerms(text);
+        String address = createAddress(terms);
+        terms.addAll(getFixTerms(address));
+        return createAddress(terms);
+    }
+
+    private static Set<String> getFixTerms(String text) {
+        String[] split = text.split(" ");
+        Set<String> result = new HashSet<>();
+        for (int i = 0; i < split.length; i++) {
+            if (COMMON_PREFIX.contains(split[i]) && i < split.length - 1) {
+                result.add(split[i] + split[i + 1]);
+            } else if (COMMON_POSTFIX.contains(split[i]) && i > 0) {
+                result.add(split[i - 1] + split[i]);
+            }
+        }
+        return result;
     }
 
     private static String createAddress(Set<String> terms) {

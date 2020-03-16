@@ -50,6 +50,20 @@
         "شمالی",
         "جنوبی"
     ];
+    commonPrefix = [
+        "کوچه",
+        "خیابان",
+        "بنبست",
+        "بزرگراه",
+        "آزادراه",
+        "میدان"
+    ];
+    commonPostfix = [
+        "شرقی",
+        "غربی",
+        "شمالی",
+        "جنوبی"
+    ];
     fuzzy = true;
 
     function doSearch(address) {
@@ -58,30 +72,46 @@
         if (address === "") {
             return;
         }
-        address = address.replace("بن بست", "بنبست");
-        address = address.replace("اتوبان", "بزرگراه");
-        address = address.replace("بزرگ راه", "بزرگراه");
-        address = address.replace("آزاد راه", "آزادراه");
-        address = address.replace(" خ ", " خیابان ");
-        address = address.replace(" ک ", " کوچه ");
-        address = address.replace("نرسیده به", " ");
-        address = address.replace("ثبل از", " ");
-        address = address.replace("حد فاصل", " ");
-        address = address.replace("نبش ", " ");
-        address = address.replace("  ", " ");
+        address = normalize(address);
+        let query = createQuery(address);
+        let query2 = createQuery2(address);
+        let query3 = createQuery3(address);
+        let request2 = {
+            query: {
+                query_string: {
+                    query: query2,
+                    default_field: "full_text"
+                }
+            }
+        };
+        let request3 = {
+            query: {
+                query_string: {
+                    query: query3,
+                    default_field: "full_text"
+                }
+            }
+        };
+        debugger
+        searchOnIndex(query, "map*bm", "boolResults");
+        searchOnIndex(request2, "map*-bm", "results");
+        searchOnIndex(request3, "map*bbm", "customResults");
+    }
+
+    function createQuery(address) {
         let split = address.split(" ");
         let orClause = "";
         let andClause = "";
         for (let i = 0; i < split.length; i++) {
             let item = split[i];
-            let weight = 2;
+            let weight = 4;
             if (item === "") {
                 continue;
             }
             if (commonTerms.includes(item)) {
                 weight = 1;
             } else if (i === 0) {
-                weight = 3;
+                weight = 5;
             }
             orClause += "(" + item + (fuzzy ? "~1" : "") + ")^" + weight;
             andClause += "(" + item + (fuzzy ? "~1" : "") + ")^" + weight;
@@ -99,19 +129,81 @@
         if (orClause === "") {
             return;
         }
-        let query = "(" + andClause + ")^2 OR (" + orClause + ")^1";
-
-        let request = {
+        return {
             query: {
                 query_string: {
-                    query: query,
+                    query: "(" + andClause + ")^2 OR (" + orClause + ")^1",
                     default_field: "full_text"
                 }
             }
         };
-        searchOnIndex(request, "map*bool","boolResults");
-        searchOnIndex(request, "map*3","results");
     }
+
+    function createQuery2(address) {
+        let split = address.split(" ");
+        split = $.unique(split);
+        let acc = [];
+        let common = [];
+        for (let i = 0; i < split.length; i++) {
+            let item = split[i];
+            let weight = 4;
+            if (item === "") {
+                continue;
+            }
+            if (commonTerms.includes(item)) {
+                common.push(item);
+            } else {
+                acc.push(item + "~1");
+            }
+        }
+        let arrays = [];
+        arrays.push("(" + acc.join(" AND ") + ")");
+        temp = acc.slice();
+        for (let i = 0; i < common.length; i++) {
+            temp.push(common[i]);
+            arrays.push("(" + temp.join(" AND ") + ")");
+        }
+        return arrays.join(" OR ");
+    }
+
+    function createQuery3(address) {
+        let split = address.split(" ");
+        let acc = [];
+        for (let i = 0; i < split.length; i++) {
+            let item = split[i];
+            if (item === "") {
+                continue;
+            }
+            if (commonPostfix.includes(item) || commonPrefix.includes(item)) {
+                continue;
+            }
+            if (i > 0 && commonPrefix.includes(split[i - 1])) {
+                acc.push("(" + split[i - 1] + item + " OR " + item + ")");
+            } else if (i < split.length - 1 && commonPostfix.includes(split[i + 1])) {
+                acc.push("(" + item + split[i + 1] + " OR " + item + ")");
+            } else {
+                acc.push(item);
+            }
+
+        }
+        return acc.join(" AND ");
+    }
+
+    function normalize(address) {
+        address = address.replace("بن بست", "بنبست");
+        address = address.replace("اتوبان", "بزرگراه");
+        address = address.replace("بزرگ راه", "بزرگراه");
+        address = address.replace("آزاد راه", "آزادراه");
+        address = address.replace(" خ ", " خیابان ");
+        address = address.replace(" ک ", " کوچه ");
+        address = address.replace("نرسیده به", " ");
+        address = address.replace("ثبل از", " ");
+        address = address.replace("حد فاصل", " ");
+        address = address.replace("نبش ", " ");
+        address = address.replace("  ", " ");
+        return address;
+    }
+
 
     function searchOnIndex(request, index, container) {
         $.ajax({
@@ -189,26 +281,33 @@
 <input id="txtQuery"/>
 <table style="width: 100%;border: solid 1px black;">
     <tr>
-        <td style="text-align: center;background-color: black;color: white; width: 30%;border-left: solid 1px black;border-bottom: solid 1px black;">
-            Bool
+        <td style="text-align: center;background-color: black;color: white; width: 25%;border-left: solid 1px black;border-bottom: solid 1px black;">
+            Custom
         </td>
-        <td style="text-align: center;background-color: black;color: white; width: 30%;border-left: solid 1px black;border-bottom: solid 1px black;">
+        <td style="text-align: center;background-color: black;color: white; width: 25%;border-left: solid 1px black;border-bottom: solid 1px black;">
+            BM25
+        </td>
+        <td style="text-align: center;background-color: black;color: white; width: 25%;border-left: solid 1px black;border-bottom: solid 1px black;">
             Simple
         </td>
-        <td style="width: 30%; border-bottom: solid 1px black;text-align: center;background-color: black;color: white;">
+        <td style="width: 25%; border-bottom: solid 1px black;text-align: center;background-color: black;color: white;">
             Tap30
         </td>
     </tr>
     <tr>
-        <td style="width:30%;border-left: solid 1px black;">
+        <td style="width:25%;border-left: solid 1px black;">
+            <div id="customResults">
+            </div>
+        </td>
+        <td style="width:25%;border-left: solid 1px black;">
             <div id="boolResults">
             </div>
         </td>
-        <td style="width: 30%;border-left: solid 1px black;">
+        <td style="width: 25%;border-left: solid 1px black;">
             <div id="results">
             </div>
         </td>
-        <td style="width: 30%;border-left: solid 1px black;">
+        <td style="width: 25%;border-left: solid 1px black;">
             <div id="tap30Results">
             </div>
         </td>

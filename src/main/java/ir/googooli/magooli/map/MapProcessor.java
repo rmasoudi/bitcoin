@@ -7,7 +7,7 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RestClient;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
 import java.util.concurrent.BlockingQueue;
 
 public class MapProcessor extends Thread {
@@ -15,10 +15,12 @@ public class MapProcessor extends Thread {
     private BlockingQueue<HashMap<String, Object>> queue;
     private ObjectMapper objectMapper = new ObjectMapper();
     private RestClient restClient;
+    private String replace;
 
-    public MapProcessor(BlockingQueue<HashMap<String, Object>> queue, RestClient restClient) {
+    public MapProcessor(BlockingQueue<HashMap<String, Object>> queue, RestClient restClient, String replace) {
         this.queue = queue;
         this.restClient = restClient;
+        this.replace = replace;
     }
 
     @Override
@@ -33,7 +35,7 @@ public class MapProcessor extends Thread {
                 take.put("full_text", CorrectorUtil.correctFullText(full_text));
                 String index = take.remove("index").toString();
                 String id = take.remove("id").toString();
-                index = index.replace("2", "3");
+                index = index.replace("2", replace);
                 Request request = new Request("PUT", "/" + index + "/_doc/" + id);
                 request.setJsonEntity(objectMapper.writeValueAsString(take));
                 restClient.performRequest(request);

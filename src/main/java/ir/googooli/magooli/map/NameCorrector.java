@@ -13,13 +13,14 @@ public class NameCorrector {
         BlockingQueue<HashMap<String, Object>> queue = new ArrayBlockingQueue<>(100);
         MapScroller mapScroller = new MapScroller(restClient, args[1], queue);
         int threads = Integer.parseInt(args[2]);
+        String replace = args[3];
         for (int i = 0; i < threads; i++) {
-            MapProcessor mapProcessor = new MapProcessor(queue, restClient);
+            MapProcessor mapProcessor = new MapProcessor(queue, restClient,replace);
             mapProcessor.setName("Processor_" + i);
             mapProcessor.start();
         }
         mapScroller.start();
-        while (true){
+        while (true) {
             Thread.sleep(1);
         }
 
