@@ -85,6 +85,12 @@
         address = normalize(address);
         let query3 = createQuery3(address);
         let request3 = {
+            "indices_boost": [
+                {"*bound*": 1.2},
+                {"*way*": 1.1},
+                {"*intersect*": 1},
+                {"*node*": .9}
+            ],
             query: {
                 query_string: {
                     query: query3,
@@ -108,11 +114,11 @@
                 continue;
             }
             if (i > 0 && commonPrefix.includes(split[i - 1])) {
-                acc.push("(" + split[i - 1] + item + "^2 OR " + item + "^1)");
+                acc.push("(" + split[i - 1] + item + "~1^2 OR " + item + "~1^1)");
             } else if (i < split.length - 1 && commonPostfix.includes(split[i + 1])) {
-                acc.push("(" + item + split[i + 1] + "^2 OR " + item + "^1)");
+                acc.push("(" + item + split[i + 1] + "~1^2 OR " + item + "~1^1)");
             } else {
-                acc.push(item);
+                acc.push(item + "~1");
             }
 
         }
