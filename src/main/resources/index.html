@@ -45,6 +45,11 @@
         "بزرگراه",
         "آزادراه",
         "میدان",
+        "جاده",
+        "چهارراه",
+        "فلکه",
+        "بلوار",
+        "سهراه",
         "شرقی",
         "غربی",
         "شمالی",
@@ -56,7 +61,12 @@
         "بنبست",
         "بزرگراه",
         "آزادراه",
-        "میدان"
+        "میدان",
+        "جاده",
+        "چهارراه",
+        "فلکه",
+        "بلوار",
+        "سهراه"
     ];
     commonPostfix = [
         "شرقی",
@@ -73,17 +83,7 @@
             return;
         }
         address = normalize(address);
-        let query = createQuery(address);
-        let query2 = createQuery2(address);
         let query3 = createQuery3(address);
-        let request2 = {
-            query: {
-                query_string: {
-                    query: query2,
-                    default_field: "full_text"
-                }
-            }
-        };
         let request3 = {
             query: {
                 query_string: {
@@ -92,79 +92,9 @@
                 }
             }
         };
-        debugger
-        searchOnIndex(query, "map*bm", "boolResults");
-        searchOnIndex(request2, "map*-bm", "results");
-        searchOnIndex(request3, "map*bbm", "customResults");
+        searchOnIndex(request3, "map*bm2", "customResults");
     }
 
-    function createQuery(address) {
-        let split = address.split(" ");
-        let orClause = "";
-        let andClause = "";
-        for (let i = 0; i < split.length; i++) {
-            let item = split[i];
-            let weight = 4;
-            if (item === "") {
-                continue;
-            }
-            if (commonTerms.includes(item)) {
-                weight = 1;
-            } else if (i === 0) {
-                weight = 5;
-            }
-            orClause += "(" + item + (fuzzy ? "~1" : "") + ")^" + weight;
-            andClause += "(" + item + (fuzzy ? "~1" : "") + ")^" + weight;
-            if (i < split.length - 1) {
-                orClause += " OR ";
-                andClause += " AND ";
-            }
-        }
-        if (orClause.endsWith("OR ")) {
-            orClause = orClause.substring(0, orClause.lastIndexOf("OR ")).trim();
-        }
-        if (andClause.endsWith("AND ")) {
-            andClause = andClause.substring(0, andClause.lastIndexOf("AND ")).trim();
-        }
-        if (orClause === "") {
-            return;
-        }
-        return {
-            query: {
-                query_string: {
-                    query: "(" + andClause + ")^2 OR (" + orClause + ")^1",
-                    default_field: "full_text"
-                }
-            }
-        };
-    }
-
-    function createQuery2(address) {
-        let split = address.split(" ");
-        split = $.unique(split);
-        let acc = [];
-        let common = [];
-        for (let i = 0; i < split.length; i++) {
-            let item = split[i];
-            let weight = 4;
-            if (item === "") {
-                continue;
-            }
-            if (commonTerms.includes(item)) {
-                common.push(item);
-            } else {
-                acc.push(item + "~1");
-            }
-        }
-        let arrays = [];
-        arrays.push("(" + acc.join(" AND ") + ")");
-        temp = acc.slice();
-        for (let i = 0; i < common.length; i++) {
-            temp.push(common[i]);
-            arrays.push("(" + temp.join(" AND ") + ")");
-        }
-        return arrays.join(" OR ");
-    }
 
     function createQuery3(address) {
         let split = address.split(" ");
@@ -178,9 +108,9 @@
                 continue;
             }
             if (i > 0 && commonPrefix.includes(split[i - 1])) {
-                acc.push("(" + split[i - 1] + item + " OR " + item + ")");
+                acc.push("(" + split[i - 1] + item + "^2 OR " + item + "^1)");
             } else if (i < split.length - 1 && commonPostfix.includes(split[i + 1])) {
-                acc.push("(" + item + split[i + 1] + " OR " + item + ")");
+                acc.push("(" + item + split[i + 1] + "^2 OR " + item + "^1)");
             } else {
                 acc.push(item);
             }
@@ -191,6 +121,10 @@
 
     function normalize(address) {
         address = address.replace("بن بست", "بنبست");
+        address = address.replace("چهار راه", "چهارراه");
+        address = address.replace("سه راهی", "سهراه");
+        address = address.replace("سه راه", "سهراه");
+        address = address.replace("بولوار", "بلوار");
         address = address.replace("اتوبان", "بزرگراه");
         address = address.replace("بزرگ راه", "بزرگراه");
         address = address.replace("آزاد راه", "آزادراه");
@@ -281,33 +215,19 @@
 <input id="txtQuery"/>
 <table style="width: 100%;border: solid 1px black;">
     <tr>
-        <td style="text-align: center;background-color: black;color: white; width: 25%;border-left: solid 1px black;border-bottom: solid 1px black;">
+        <td style="text-align: center;background-color: black;color: white; width: 50%;border-left: solid 1px black;border-bottom: solid 1px black;">
             Custom
         </td>
-        <td style="text-align: center;background-color: black;color: white; width: 25%;border-left: solid 1px black;border-bottom: solid 1px black;">
-            BM25
-        </td>
-        <td style="text-align: center;background-color: black;color: white; width: 25%;border-left: solid 1px black;border-bottom: solid 1px black;">
-            Simple
-        </td>
-        <td style="width: 25%; border-bottom: solid 1px black;text-align: center;background-color: black;color: white;">
+        <td style="width: 50%; border-bottom: solid 1px black;text-align: center;background-color: black;color: white;">
             Tap30
         </td>
     </tr>
     <tr>
-        <td style="width:25%;border-left: solid 1px black;">
+        <td style="width:50%;border-left: solid 1px black;">
             <div id="customResults">
             </div>
         </td>
-        <td style="width:25%;border-left: solid 1px black;">
-            <div id="boolResults">
-            </div>
-        </td>
-        <td style="width: 25%;border-left: solid 1px black;">
-            <div id="results">
-            </div>
-        </td>
-        <td style="width: 25%;border-left: solid 1px black;">
+        <td style="width: 50%;border-left: solid 1px black;">
             <div id="tap30Results">
             </div>
         </td>

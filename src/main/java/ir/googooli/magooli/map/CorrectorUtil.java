@@ -7,17 +7,43 @@ public class CorrectorUtil {
 
 
     private static Pattern SEP_PATTERN = Pattern.compile("[ادذرزژ,و]");
+    private static final List<String> COMMON_PREFIX = Arrays.asList("کوچه", "خیابان", "بنبست", "بزرگراه", "آزادراه", "میدان", "جاده", "چهارراه", "فلکه", "بلوار", "سهراه");
+    private static final List<String> COMMON_POSTFIX = Arrays.asList("شرقی", "غربی", "شمالی", "جنوبی");
+    private static final List<String> COMMON_FIX = Arrays.asList("شرقی", "غربی", "شمالی", "جنوبی", "کوچه", "خیابان", "بنبست", "بزرگراه", "آزادراه", "میدان", "جاده", "چهارراه", "فلکه", "بلوار", "سهراه");
+    private static final Pattern COMMON_FIX_PATTERN = Pattern.compile("شرقی|غربی|شمالی|جنوبی|کوچه|خیابان|بنبست|بزرگراه|آزادراه|میدان|جاده|چهارراه|فلکه|بلوار|سهراه");
+
+
+    private static final Pattern BON_BAST = Pattern.compile("بن بست");
+    private static final Pattern BOZORG_RAH = Pattern.compile("بزرگ راه");
+    private static final Pattern AZAR_RAH = Pattern.compile("آزاد راه");
+    private static final Pattern CHAHAR_RAH = Pattern.compile("چهار راه|چارراه");
+    private static final Pattern SE_RAH = Pattern.compile("سه راه");
+    private static final Pattern SE_RAHI = Pattern.compile("سه راهی");
+    private static final Pattern BOLVAR = Pattern.compile("بولوار");
+
+    private static String normalize(String text) {
+        text = BON_BAST.matcher(text).replaceAll("بنبست");
+        text = BOZORG_RAH.matcher(text).replaceAll("بزرگراه");
+        text = AZAR_RAH.matcher(text).replaceAll("آزادراه");
+        text = CHAHAR_RAH.matcher(text).replaceAll("چهارراه");
+        text = SE_RAHI.matcher(text).replaceAll("سهراه");
+        text = SE_RAH.matcher(text).replaceAll("سهراه");
+        text = BOLVAR.matcher(text).replaceAll("بلوار");
+        return text;
+    }
+
 
     public static void main(String[] args) {
         ArrayList<String> list = new ArrayList<>();
-        list.add("تهران خیابان سردارجنگل کوچه عادل شرقی");
+        list.add("تهران خیابان سردار جنگل شمالی میدان نبوت تجریش فدک گوگولی مگولی شمالی");
         Object o = correctFullText(list);
         System.out.println(o);
 
     }
 
     public static Set<String> correctTerms(String address) {
-        Set<String> results=new HashSet<>();
+        address = normalize(address);
+        Set<String> results = new HashSet<>();
         String[] split = address.split(" ");
         Set<String>[] varArray = new Set[split.length];
         List<Integer> preIndices = new ArrayList<>();
@@ -60,10 +86,57 @@ public class CorrectorUtil {
             Set<String> candidates = varArray[index];
             results.addAll(candidates);
         }
-        for (int i = 0; i < split.length - 1; i++) {  //سردارجنگل from سردار جنگل
-            results.add(split[i] + split[i + 1]);
+        List<List<String>> list = new ArrayList<>();
+        List<String> acc = new ArrayList<>();
+        for (String s : split) {
+            if (COMMON_FIX.contains(s)) {
+                list.add(acc);
+                acc = new ArrayList<>();
+                acc.add(s);
+                list.add(acc);
+                acc = new ArrayList<>();
+            } else {
+                acc.add(s);
+            }
+        }
+        if (!acc.isEmpty()) {
+            list.add(acc);
+        }
+        List<List<String>> varList = new ArrayList<>();
+        for (List<String> tokens : list) {
+            List<String> vars = new ArrayList<>();
+            if (tokens.size() > 1) {
+                for (int i = 0; i < tokens.size() - 1; i++) {
+                    vars.add(tokens.get(i) + tokens.get(i + 1));
+                    results.add(tokens.get(i) + tokens.get(i + 1));
+                }
+            } else if (tokens.size() == 1) {
+                vars.add(tokens.get(0));
+                if (!COMMON_FIX.contains(tokens.get(0))) {
+                    results.add(tokens.get(0));
+                }
+            }
+            if (vars.size() > 0) {
+                varList.add(vars);
+            }
+        }
+        for (int i = 0; i < varList.size(); i++) {
+            if (isPrefix(varList.get(i)) && i < varList.size() - 1) {
+                results.add(varList.get(i).get(0) + varList.get(i + 1).get(0));
+            }
+            if (isPostfix(varList.get(i)) && i > 0) {
+                results.add(varList.get(i - 1).get(0) + varList.get(i).get(0));
+            }
         }
         return results;
+    }
+
+    private static boolean isPrefix(List<String> list) {
+        return list.size() == 1 && COMMON_PREFIX.contains(list.get(0));
+    }
+
+    private static boolean isPostfix(List<String> list) {
+        return list.size() == 1 && COMMON_POSTFIX.contains(list.get(0));
     }
 
     private static Set<String> getWordVariations(String word) {
@@ -112,8 +185,6 @@ public class CorrectorUtil {
         }
     }
 
-    private static final List<String> COMMON_PREFIX = Arrays.asList("کوچه", "خیابان", "بنبست", "بزرگراه", "آزادراه", "میدان");
-    private static final List<String> COMMON_POSTFIX = Arrays.asList("شرقی", "غربی", "شمالی", "جنوبی");
 
     public static Object correctFullText(Object o) {
         String text = getText(o);
