@@ -1,0 +1,23 @@
+{
+  "index_patterns": ["*elastic*"],
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings" : {
+    "properties" : {
+      "max_doc_count" : {
+        "type" : "integer"
+      },
+      "ip" : {
+        "type" : "ip"
+      },
+      "version" : {
+        "type" : "keyword"
+      },
+      "biggest_index" : {
+        "type" : "keyword"
+      }
+    }
+  }
+}
